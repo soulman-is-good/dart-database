@@ -1,0 +1,4 @@
+name: dart_database
+version: 0.1.0
+dependencies:
+  test: any
