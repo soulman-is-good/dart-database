@@ -14,15 +14,6 @@ int byteListToInt(List list) {
   return result;
 }
 
-List<int> createByteListFromString(String s) {
-  var ret = new List<int>(s.length);
-
-  for( var i=0 ; i<s.length ; i++ ) {
-    ret[i] = s.codeUnitAt(i);
-  }
-  return ret;
-}
-
 List<int> intToByteListBE(final int number, [int listSize]) {
   int parsed = number;
   int size = listSize ?? sizeOfInt(number);
