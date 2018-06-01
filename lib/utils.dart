@@ -15,6 +15,7 @@ int byteListToInt(List list) {
 }
 
 List<int> intToByteListBE(final int number, [int listSize]) {
+  if (number == null) return new List();
   int parsed = number;
   int size = listSize ?? sizeOfInt(number);
   int index = size;

@@ -1,8 +1,12 @@
 library dart_database;
 
 import 'dart:mirrors';
+import './field.dart';
+import './entity.dart';
 import './collection.dart';
 
+export './field.dart';
+export './entity.dart';
 export './collection.dart';
 
 Map<Type, ClassMirror> _collectionsMirrors = new Map();
