@@ -2,7 +2,6 @@ library dart_database.entity;
 
 import 'dart:mirrors';
 import './main.dart';
-import './utils.dart';
 
 class _FieldDecorator {
   const _FieldDecorator();
@@ -36,29 +35,31 @@ class Entity {
     InstanceMirror im = reflect(this);
     
     while (offset < byteArray.length) {
-      dynamic fieldDefSet = Field.parseByteArray(byteArray, offset);
+      List fieldDefSet = Field.parseByteArray(byteArray, offset);
       String fieldName = fieldDefSet[0];
       Field field = _fields.containsKey(fieldName)
         ? _fields[fieldName]
         : null;
 
       if (field == null || fieldDefSet[1] != field.type) {
-        throw new Exception('Datatype missmatch for ${field[0]}');
+        throw new Exception('Datatype missmatch for ${fieldName}');
       }
       Symbol fieldNameSymbol = new Symbol(fieldName);
       dynamic fieldValue = fieldDefSet[2];
 
       im.setField(fieldNameSymbol, fieldValue);
-      offset += fieldDefSet[3];
+      offset = fieldDefSet[3];
     }
   }
 
-  List<Field> _parse() {
+  Map<String, Field> _parse() {
     InstanceMirror im = reflect(this);
     Map<String, Field> fields = new Map();
-    ClassMirror collectionMirror = getCollectionMirror(this.runtimeType);
+    ClassMirror collectionMirror = Config.getCollectionMirror(this.runtimeType);
 
-    if (collectionMirror != null) {
+    if (collectionMirror == null) {
+      throw new Exception('Could not find class ${MirrorSystem.getName(im.type.simpleName)}. Have you run bootstrap?');
+    }
       collectionMirror.declarations.forEach((Symbol fieldName, DeclarationMirror mirror) {
         if (
           mirror is VariableMirror &&
@@ -72,7 +73,6 @@ class Entity {
             new Field(fieldNameString, mirror.type.reflectedType, im.getField(fieldName));
         }
       });
-    }
 
     return fields;
   }

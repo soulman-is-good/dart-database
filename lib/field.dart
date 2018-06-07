@@ -1,6 +1,7 @@
 library dart_database.field;
 
 import 'dart:mirrors';
+import './main.dart';
 import './utils.dart';
 
 class Field {
@@ -16,7 +17,7 @@ class Field {
     int typeByte = bytes[0];
 
     if (bytes.length < 3) {
-      throw new Exception('Malformed buffer. Name should be more than 2 bytes long');
+      throw new Exception('Malformed buffer. Field should be more than 2 bytes long');
     }
     switch(typeByte) {
       case 0x01:
@@ -37,13 +38,14 @@ class Field {
     int valueStart = valueOffset + 4;
     int valueLength = byteListToInt(bytes.getRange(valueOffset, valueStart));
     dynamic fieldValue;
+    List<int> dataBuffer = bytes.getRange(valueStart, valueStart + valueLength);
 
     switch(typeByte) {
       case 0x01:
-        fieldValue = new String.fromCharCodes(bytes.getRange(valueStart, valueStart + valueLength));
+        fieldValue = new String.fromCharCodes(dataBuffer);
         break;
       case 0x02:
-        fieldValue = byteListToInt(bytes.getRange(valueStart, valueStart + valueLength));
+        fieldValue = byteListToInt(dataBuffer);
         break;
       case 0x03:
         fieldValue = bytes[valueStart] == 1;

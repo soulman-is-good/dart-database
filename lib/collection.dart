@@ -1,6 +1,8 @@
 library dart_database.collection;
 
 import 'dart:collection';
+import './entity.dart' show Entity;
+import './utils.dart';
 
 class Collection<T extends Entity> extends ListBase<T> {
   final List<T> _items = <T>[];
@@ -30,9 +32,19 @@ class Collection<T extends Entity> extends ListBase<T> {
     List<int> result = new List();
 
     this.forEach((T item) {
-      result.addAll(item.serialize());
+      List<int> data = item.serialize();
+      int length = data.length;
+      List<int> lengthBytes = intToByteListBE(length, 4);
+
+      result.addAll(lengthBytes);
+      result.addAll(data);
     });
 
     return result.toList(growable: false);
+  }
+
+  @override
+  set length(int newLength) {
+    throw new Exception('Not allowed');
   }
 }

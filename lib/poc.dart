@@ -1,58 +1,51 @@
-import 'dart:io';
-import 'dart:async';
+import 'dart:mirrors';
 import 'dart:collection';
+import './main.dart';
+import './storage/file_storage.dart';
+import './utils.dart';
 
-class MemoryStorage extends StorageInterface {
-  static final Map<String, List<int>> _store = new Map();
+class Cursor<T extends Entity> extends Iterator<T> {
+  FileStorage _storage;
+  int _position;
+  T _current;
 
-  MemoryStorage(String name): super(name) {
-    _store[name] = new List();
+  Cursor() {
+    TypeMirror mirror = reflectType(T);
+    String name = MirrorSystem.getName(mirror.simpleName);
+
+    _storage = new FileStorage(name);
+    _position = 0;
+    _current = null;
   }
 
   @override
-  Stream<List<int>> read() {
-    return new Stream.fromIterable(_store[name]);
-  }
-}
-
-final String path = '../';
-
-class FileStorage extends StorageInterface {
-  static final Map<String, File> _files = new Map();
-
-  FileStorage(String name): super(name) {
-    _files[name] = new File('$path/$name.db');
-  }
+  T get current => _current;
 
   @override
-  Stream<List<int>> read() {
-    return _files[name].openRead();
+  bool moveNext() {
+    if (_position >= _storage.size()) {
+      return false;
+    }
+    TypeMirror mirror = reflectType(T);
+    ClassMirror classMirror = reflectClass(mirror.reflectedType);
+    List<int> recordLengthBytes = _storage.readSync(_position, 4);
+    int recordLength = byteListToInt(recordLengthBytes);
+    List<int> entityData = _storage.readSync(_position + 4, recordLength);
+    Symbol byteArrayConstuctor = new Symbol('fromByteArray');
+
+    _position += recordLength + 4;
+    _current = classMirror.newInstance(byteArrayConstuctor, [entityData]).reflectee;
+
+    return true;
   }
 }
 
-abstract class StorageInterface {
-  final String name;
-  StorageInterface(this.name);
-  Stream read();
-}
-
-class Cursor<T> extends Iterator<T> {
-  // TODO: implement current
-  @override
-  T get current => null;
-
-  @override
-  bool movePrevious() {
-    // TODO: implement movePrevious
-  }
-}
-
-class Collection<T> extends IterableBase<T> {
+class XCollection<T extends Entity> extends IterableBase<T> {
   /// Order - buffer/file offset
   /// TODO: Maybe implement static data length to not to resize all the data in the file
   /// TODO: ===> OR!!! add some revision property and when entity updates - write it in the end of file as new then clean up someday
-  Map<Entity, int> _collection = new Map();
+  // Map<T, int> _collection = new Map();
 
   @override
-  Iterator<T> get iterator => null;
+  Iterator<T> get iterator => new Cursor<T>();
 }
