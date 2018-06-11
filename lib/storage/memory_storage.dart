@@ -1,7 +1,7 @@
 import 'dart:async';
-import '../interfaces/storage.dart';
+import './storage.dart';
 
-class MemoryStorage extends StorageInterface {
+class MemoryStorage extends Storage {
   static final Map<String, List<int>> _store = new Map();
 
   MemoryStorage(String name): super(name) {

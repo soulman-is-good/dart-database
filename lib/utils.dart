@@ -1,8 +1,8 @@
 import 'dart:math';
 
-int sizeOfInt(int number) => (log(number) / log(2) / 8).floor() + 1;
+int sizeOfInt(int number) => number < 256 ? 1 : (log(number) / log(2) / 8).floor() + 1;
 
-int byteListToInt(List list) {
+int byteListToInt(List<int> list) {
   int bytes = (list.length - 1) * 8;
   int result = 0;
 

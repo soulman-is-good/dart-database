@@ -1,16 +1,8 @@
 library dart_database.field;
 
-import 'dart:mirrors';
-import './main.dart';
 import './utils.dart';
 
 class Field {
-  final String name;
-  final Type type;
-  final InstanceMirror field;
-
-  Field(this.name, this.type, this.field);
-  
   static dynamic parseByteArray(List<int> byteList, [int offset = 0]) {
     List<int> bytes = byteList.sublist(offset);
     Type fieldType;
@@ -36,7 +28,7 @@ class Field {
     int valueOffset = nameLength + 2;
     String fieldName = new String.fromCharCodes(bytes.getRange(2, valueOffset));
     int valueStart = valueOffset + 4;
-    int valueLength = byteListToInt(bytes.getRange(valueOffset, valueStart));
+    int valueLength = byteListToInt(bytes.getRange(valueOffset, valueStart).toList());
     dynamic fieldValue;
     List<int> dataBuffer = bytes.getRange(valueStart, valueStart + valueLength);
 
@@ -62,14 +54,14 @@ class Field {
     ];
   }
 
-  List<int> serialize() => new List<int>()
-    ..addAll(_serializeDefinition())
-    ..addAll(_serializeValue())
+  static List<int> serialize(String name, dynamic value) => new List<int>()
+    ..addAll(_serializeDefinition(name, value))
+    ..addAll(_serializeValue(value))
     ..toList(growable: false);
 
-  List<int> _serializeDefinition() {
+  static List<int> _serializeDefinition(String name, dynamic value) {
     List<int> nameBytes = name.codeUnits;
-    int typeByte = _getTypeByte();
+    int typeByte = _getTypeByte(value);
     List<int> result = new List();
     
     if (nameBytes.length > 255) {
@@ -83,8 +75,8 @@ class Field {
     return result.toList(growable: false);
   }
 
-  List<int> _serializeValue() {
-    List<int> valueBytes = _valueToByteArray();
+  static List<int> _serializeValue(dynamic value) {
+    List<int> valueBytes = _valueToByteArray(value);
     List<int> valueLength = intToByteListBE(valueBytes.length, 4);
 
     return new List<int>()
@@ -93,42 +85,19 @@ class Field {
       ..toList(growable: false);
   }
 
-  _getTypeByte() {
-    switch (type) {
-      case String:
-        return 0x01;
-      case int:
-        return 0x02;
-      case bool:
-        return 0x03;
-      // case double:
-      //   return 0x04;
-      default:
-        throw new Exception('Unknown type $type');
-    }
+  static int _getTypeByte(dynamic value) {
+    if (value is String) return 0x01;
+    if (value is int) return 0x02;
+    if (value is bool) return 0x03;
+
+    throw new Exception('Unknown type');
   }
 
-  _valueToByteArray() {
-    dynamic value = field.reflectee;
+  static List<int> _valueToByteArray(dynamic value) {
+    if (value is String) return value.codeUnits;
+    if (value is int) return intToByteListBE(value);
+    if (value is bool) return <int>[value ? 1 : 0];
 
-    switch (type) {
-      case String:
-        return (value as String).codeUnits;
-      case int:
-        return intToByteListBE(value);
-      case bool:
-        return <int>[value ? 1 : 0];
-      // case double:
-      //   return TODO;
-      default:
-        throw new Exception('Unknown type $type');
-    }
-  }
-
-  @override
-  toString() {
-    dynamic value = field.reflectee;
-
-    return 'Field `$name($type)`=$value';
+    throw new Exception('Unknown type');
   }
 }

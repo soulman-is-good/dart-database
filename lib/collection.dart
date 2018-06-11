@@ -22,11 +22,6 @@ class Collection<T extends Entity> extends ListBase<T> {
   void add(T item) {
     _items.add(item);
   }
-  
-  @override
-  void addAll(List<T> items) {
-    _items.addAll(items);
-  }
 
   List<int> serialize() {
     List<int> result = new List();
@@ -45,6 +40,6 @@ class Collection<T extends Entity> extends ListBase<T> {
 
   @override
   set length(int newLength) {
-    throw new Exception('Not allowed');
+    _items.length = newLength;
   }
 }

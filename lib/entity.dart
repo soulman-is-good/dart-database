@@ -1,30 +1,21 @@
 library dart_database.entity;
 
-import 'dart:mirrors';
+import 'dart:collection';
 import './main.dart';
 
-class _FieldDecorator {
-  const _FieldDecorator();
-}
-const field = const _FieldDecorator();
+abstract class Entity extends MapBase {
+  final Map<String, dynamic> _fields = new Map();
 
-class Entity {
-  Map<String, Field> _fields;
-
-  Entity() {
-    _fields = _parse();
-  }
-  
+  Entity();  
   Entity.fromByteArray(List<int> byteArray) {
-    _fields = _parse();
     deserialize(byteArray);
   }
 
   List<int> serialize() {
     List<int> result = new List();
 
-    _fields.forEach((String name, Field field) {
-      result.addAll(field.serialize());
+    _fields.forEach((String name, dynamic value) {
+      result.addAll(Field.serialize(name, value));
     });
 
     return result;
@@ -32,48 +23,37 @@ class Entity {
   
   void deserialize(List<int> byteArray) {
     int offset = 0;
-    InstanceMirror im = reflect(this);
     
     while (offset < byteArray.length) {
       List fieldDefSet = Field.parseByteArray(byteArray, offset);
       String fieldName = fieldDefSet[0];
-      Field field = _fields.containsKey(fieldName)
-        ? _fields[fieldName]
-        : null;
-
-      if (field == null || fieldDefSet[1] != field.type) {
-        throw new Exception('Datatype missmatch for ${fieldName}');
-      }
-      Symbol fieldNameSymbol = new Symbol(fieldName);
       dynamic fieldValue = fieldDefSet[2];
 
-      im.setField(fieldNameSymbol, fieldValue);
+      _fields[fieldName] = fieldValue;
       offset = fieldDefSet[3];
     }
   }
 
-  Map<String, Field> _parse() {
-    InstanceMirror im = reflect(this);
-    Map<String, Field> fields = new Map();
-    ClassMirror collectionMirror = Config.getCollectionMirror(this.runtimeType);
+  @override
+  operator [](Object key) {
+    return _fields[key];
+  }
 
-    if (collectionMirror == null) {
-      throw new Exception('Could not find class ${MirrorSystem.getName(im.type.simpleName)}. Have you run bootstrap?');
-    }
-      collectionMirror.declarations.forEach((Symbol fieldName, DeclarationMirror mirror) {
-        if (
-          mirror is VariableMirror &&
-          mirror.metadata.length > 0 &&
-          mirror.metadata.first.reflectee is _FieldDecorator
-        ) {
-          String fieldNameString = MirrorSystem.getName(fieldName);
+  @override
+  void operator []=(key, value) {
+    _fields[key] = value;
+  }
 
-          im.getField(fieldName);
-          fields[fieldNameString] =
-            new Field(fieldNameString, mirror.type.reflectedType, im.getField(fieldName));
-        }
-      });
+  @override
+  void clear() {
+    _fields.clear();
+  }
 
-    return fields;
+  @override
+  Iterable get keys => _fields.keys;
+
+  @override
+  remove(Object key) {
+    _fields.remove(key);
   }
 }
