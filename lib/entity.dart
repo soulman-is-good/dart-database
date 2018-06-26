@@ -4,7 +4,9 @@ import 'dart:collection';
 import './main.dart';
 
 abstract class Entity extends MapBase {
+  int _position;
   final Map<String, dynamic> _fields = new Map();
+  VoidCallback saveCallback;
 
   Entity();  
   Entity.fromByteArray(List<int> byteArray) {
@@ -33,6 +35,14 @@ abstract class Entity extends MapBase {
       offset = fieldDefSet[3];
     }
   }
+  
+  void setSaveCallback(VoidCallback callback) {
+    saveCallback = callback;
+  }
+  
+  void associatePosition(int position) {
+    _position = position;
+  }
 
   @override
   operator [](Object key) {
@@ -56,4 +66,16 @@ abstract class Entity extends MapBase {
   remove(Object key) {
     _fields.remove(key);
   }
+  
+  void save() {
+    if (saveCallback != null) {
+      saveCallback(this);
+    }
+  }
+  
+  @override
+  bool operator ==(dynamic o) => o is Entity && hashCode == o.hashCode;
+
+  @override
+  int get hashCode => _position ?? super.hashCode;
 }

@@ -1,3 +1,5 @@
+library dart_database.poc;
+
 import 'dart:collection';
 import './main.dart';
 import './storage/storage.dart';
@@ -64,19 +66,28 @@ class XCollection<T extends Entity> extends IterableBase<T> {
 
   T _creator(int position) {
     T item = _itemCreator();
+    item.associatePosition(position);
     _positionsCache[item] = position;
+    item.setSaveCallback(_save);
 
     return item;
   }
 
   void _save(T item) {
     int offset = _positionsCache[item];
+    List<int> data = item.serialize();
+    int newSize = _storage.writeSync(data, offset);
+    int position = newSize - data.length;
 
+    _positionsCache[item] = position;
+    item.associatePosition();
   }
 
   @override
   Iterator<T> get iterator => new Cursor<T>(_creator, _storage);
 
-  void save() {
+  void add(T item) {
+    _save(item);
+    item.setSaveCallback(_save);
   }
 }

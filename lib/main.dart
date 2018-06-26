@@ -9,7 +9,6 @@ export './collection.dart';
 final Map<String, dynamic> _settings = new Map();
 
 void bootstrap(Map<String, dynamic> settings) {
-
   _settings.addAll(settings);
 }
 
