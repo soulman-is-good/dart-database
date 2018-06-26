@@ -53,16 +53,13 @@ class Cursor<T extends Entity> extends Iterator<T> {
 }
 
 class XCollection<T extends Entity> extends IterableBase<T> {
-  final FileStorage _storage;  
+  final Storage _storage;  
   final String collectionName;
   final EntityBuilder<T> _itemCreator;
   final Map<T, int> _positionsCache;
 
-  XCollection(this.collectionName, this._itemCreator): _storage = new FileStorage(collectionName);
-  /// Order - buffer/file offset
-  /// TODO: Maybe implement static data length to not to resize all the data in the file
-  /// TODO: ===> OR!!! add some revision property and when entity updates - write it in the end of file as new then clean up someday
-  // Map<T, int> _collection = new Map();
+  XCollection(this.collectionName, this._itemCreator, {this._storage}):
+    _storage = _storage ?? new FileStorage(collectionName);
 
   T _creator(int position) {
     T item = _itemCreator();
