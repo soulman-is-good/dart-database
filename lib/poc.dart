@@ -21,6 +21,43 @@ enum BlockSize {
   XXXL, // 1GB
 }
 
+class Block {
+  BlockSize size;
+  bool isOccupied = false;
+  int dataLength = 0;
+
+  Block(List<int> buffer);
+
+  BlockSize _determineBlockSize(int size) {
+    if (size > 1073741824) {
+      throw new RangeError.range(size, 0, 1073741824, 'BlockSize', 'Block size is too big');
+    }
+    if (size > 104857600) {
+      return BlockSize.XXXL;
+    }
+    if (size > 10485760) {
+      return BlockSize.XXL;
+    }
+    if (size > 1048576) {
+      return BlockSize.XL;
+    }
+    if (size > 262144) {
+      return BlockSize.L;
+    }
+    if (size > 65536) {
+      return BlockSize.M;
+    }
+    if (size > 16384) {
+      return BlockSize.S;
+    }
+    if (size > 8192) {
+      return BlockSize.XS;
+    }
+
+    return BlockSize.XXS;
+  }
+}
+
 class Cursor<T extends Entity> extends Iterator<T> {
   final _CursorEntityBuilder<T> _creator;
   final Storage _storage;
@@ -58,8 +95,9 @@ class XCollection<T extends Entity> extends IterableBase<T> {
   final EntityBuilder<T> _itemCreator;
   final Map<T, int> _positionsCache;
 
-  XCollection(this.collectionName, this._itemCreator, {this._storage}):
-    _storage = _storage ?? new FileStorage(collectionName);
+  XCollection(this.collectionName, this._itemCreator, {Storage storage}):
+    _storage = storage ?? new FileStorage(collectionName),
+    _positionsCache = new Map();
 
   T _creator(int position) {
     T item = _itemCreator();
@@ -77,7 +115,7 @@ class XCollection<T extends Entity> extends IterableBase<T> {
     int position = newSize - data.length;
 
     _positionsCache[item] = position;
-    item.associatePosition();
+    item.associatePosition(position);
   }
 
   @override

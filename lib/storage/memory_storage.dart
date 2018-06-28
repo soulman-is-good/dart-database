@@ -22,4 +22,13 @@ class MemoryStorage extends Storage {
   int size() {
     return _store[name].length;
   }
+  @override
+  Future<int> write(List<int> buffer, [int offset = null]) {
+    // TODO: implement write
+  }
+
+  @override
+  int writeSync(List<int> buffer, [int offset = null]) {
+    // TODO: implement writeSync
+  }
 }
