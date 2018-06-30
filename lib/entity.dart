@@ -3,10 +3,12 @@ library dart_database.entity;
 import 'dart:collection';
 import './main.dart';
 
+typedef void SaveCallback(Entity item);
+
 abstract class Entity extends MapBase {
   int _position;
   final Map<String, dynamic> _fields = new Map();
-  VoidCallback saveCallback;
+  SaveCallback saveCallback;
 
   Entity();  
   Entity.fromByteArray(List<int> byteArray) {
@@ -36,7 +38,7 @@ abstract class Entity extends MapBase {
     }
   }
   
-  void setSaveCallback(VoidCallback callback) {
+  void setSaveCallback(SaveCallback callback) {
     saveCallback = callback;
   }
   

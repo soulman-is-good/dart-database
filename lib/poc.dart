@@ -20,15 +20,37 @@ enum BlockSize {
   XXL, // 100MB
   XXXL, // 1GB
 }
+enum BlockType {
+  FREE,
+  OCCUPIED,
+}
 
 class Block {
+  final List<int> buffer;
+  BlockType type;
   BlockSize size;
-  bool isOccupied = false;
   int dataLength = 0;
 
-  Block(List<int> buffer);
+  Block(this.buffer, [BlockType type]);
 
-  BlockSize _determineBlockSize(int size) {
+  factory Block.parse(List<int> buffer) {
+    BlockSize blockSize = (buffer[0] & 0x0f) as BlockSize;
+    BlockType blockType = ((buffer[0] & 0xf0) >> 4) as BlockType;
+    int dataSize = byteListToInt(buffer.sublist(1, 4));
+    List<int> dataBuffer = buffer.sublist(5, dataSize);
+
+    return new Block(dataBuffer)
+      ..type = blockType
+      ..size = blockSize;
+  }
+
+  static int getSizeOfBlock(List<int> buffer) {
+    BlockSize blockSize = (buffer[0] & 0x0f) as BlockSize;
+
+    return _getActualBlockSize(blockSize);
+  }
+
+  static BlockSize _determineBlockSize(int size) {
     if (size > 1073741824) {
       throw new RangeError.range(size, 0, 1073741824, 'BlockSize', 'Block size is too big');
     }
@@ -56,6 +78,51 @@ class Block {
 
     return BlockSize.XXS;
   }
+
+  static int _getActualBlockSize(BlockSize size) {
+    switch (size) {
+      case BlockSize.XXXL:
+        return 1073741824;
+      case BlockSize.XXL:
+        return 104857600;
+      case BlockSize.XL:
+        return 10485760;
+      case BlockSize.L:
+        return 1048576;
+      case BlockSize.M:
+        return 262144;
+      case BlockSize.S:
+        return 65536;
+      case BlockSize.XS:
+        return 16384;
+      case BlockSize.XXS:
+        return 8192;
+      default:
+        return 0;
+    }
+  }
+
+  List<int> getBytes() {
+    List<int> sizeOfLength = intToByteListBE(buffer.length, 4);
+    BlockSize blockSize = _determineBlockSize(buffer.length);
+    int blockType = BlockType.OCCUPIED.index << 4;
+    List<int> filler = new List.filled(_getActualBlockSize(blockSize) - buffer.length, 0);
+    
+    return new List()
+      ..add(blockType | blockSize.index)
+      ..addAll(sizeOfLength)
+      ..addAll(buffer)
+      ..addAll(filler)
+      ..toList(growable: false);
+  }
+
+  int get blockSize {
+    BlockSize blockSize = _determineBlockSize(buffer.length);
+
+    return _getActualBlockSize(blockSize);
+  }
+
+  int get dataSize => buffer.length;
 }
 
 class Cursor<T extends Entity> extends Iterator<T> {
@@ -77,6 +144,7 @@ class Cursor<T extends Entity> extends Iterator<T> {
     if (_position >= _storage.size()) {
       return false;
     }
+    List<int> blockHeader = _storage.readSync(_position, 5);
     List<int> recordLengthBytes = _storage.readSync(_position, 4);
     int recordLength = byteListToInt(recordLengthBytes);
     List<int> entityData = _storage.readSync(_position + 4, recordLength);
