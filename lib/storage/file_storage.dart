@@ -35,7 +35,7 @@ class FileStorage extends Storage {
   _handlers = new Map(),
   super(name) {
     if (!_files.containsKey(name)) {
-      final String path = Config.get('dbPath') ?? new String.fromEnvironment('DB_PATH');
+      final String path = Config.get('dbPath') ?? new String.fromEnvironment('DB_PATH') ?? Directory.systemTemp.path;
 
       _files[name] = new File('$path/$name.db');
     }
@@ -136,6 +136,6 @@ class FileStorage extends Storage {
 
   @override
   int size() {
-    return _files[name].lengthSync();
+    return _files[name].existsSync() ? _files[name].lengthSync() : 0;
   }
 }

@@ -14,6 +14,8 @@ abstract class Entity extends MapBase {
   Entity.fromByteArray(List<int> byteArray) {
     deserialize(byteArray);
   }
+  
+  static Entity create() => new Entity();
 
   List<int> serialize() {
     List<int> result = new List();

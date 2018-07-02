@@ -20,59 +20,76 @@ enum BlockSize {
   XXL, // 100MB
   XXXL, // 1GB
 }
-enum BlockType {
-  FREE,
-  OCCUPIED,
+class BlockType {
+  final int index;
+
+  const BlockType(this.index);
+
+  static const BlockType EMPTY = const BlockType(0);
+  static const BlockType USED = const BlockType(1);
+  static const BlockType DELETED = const BlockType(2);
+  static const BlockType ABANDONED = const BlockType(3);
+
+  static const List<BlockType> values = const <BlockType>[
+    EMPTY,
+    USED,
+    DELETED,
+    ABANDONED,
+  ];
+  String toString() => {
+    0: EMPTY,
+    1: USED,
+    2: DELETED,
+    3: ABANDONED,
+  }[index];
 }
 
 class Block {
-  final List<int> buffer;
-  BlockType type;
-  BlockSize size;
-  int dataLength = 0;
+  final BlockType type;
+  final BlockSize size;
+  final int position;
+  final int _dataLength;
 
-  Block(this.buffer, [BlockType type]);
+  Block():
+    type = BlockType.EMPTY,
+    size = BlockSize.S;
 
-  factory Block.parse(List<int> buffer) {
-    BlockSize blockSize = (buffer[0] & 0x0f) as BlockSize;
-    BlockType blockType = ((buffer[0] & 0xf0) >> 4) as BlockType;
-    int dataSize = byteListToInt(buffer.sublist(1, 4));
-    List<int> dataBuffer = buffer.sublist(5, dataSize);
-
-    return new Block(dataBuffer)
-      ..type = blockType
-      ..size = blockSize;
-  }
-
-  static int getSizeOfBlock(List<int> buffer) {
-    BlockSize blockSize = (buffer[0] & 0x0f) as BlockSize;
-
-    return _getActualBlockSize(blockSize);
-  }
+  Block.fromByteArray(List<int> buffer, [int offset = 0]):
+    size = BlockSize.values[buffer[0]],
+    type = BlockType.values[buffer[1]],
+    position = offset,
+    _dataLength = buffer.length;
+    
+  Block.forBuffer(List<int> buffer, [int offset = 0]):
+    size = _determineBlockSize(buffer.length),
+    type = BlockType.USED,
+    position = offset,
+    _dataLength = buffer.length;
 
   static BlockSize _determineBlockSize(int size) {
-    if (size > 1073741824) {
-      throw new RangeError.range(size, 0, 1073741824, 'BlockSize', 'Block size is too big');
+    // sizes decreased by 6 bytes for block header
+    if (size > 1073741818) {
+      throw new RangeError.range(size, 0, 1073741818, 'BlockSize', 'Data is too big and currently not supported');
     }
-    if (size > 104857600) {
+    if (size > 104857594) {
       return BlockSize.XXXL;
     }
-    if (size > 10485760) {
+    if (size > 10485754) {
       return BlockSize.XXL;
     }
-    if (size > 1048576) {
+    if (size > 1048570) {
       return BlockSize.XL;
     }
-    if (size > 262144) {
+    if (size > 262138) {
       return BlockSize.L;
     }
-    if (size > 65536) {
+    if (size > 65530) {
       return BlockSize.M;
     }
-    if (size > 16384) {
+    if (size > 16378) {
       return BlockSize.S;
     }
-    if (size > 8192) {
+    if (size > 8186) {
       return BlockSize.XS;
     }
 
@@ -101,19 +118,24 @@ class Block {
         return 0;
     }
   }
+  
+  bool isFitFor(List<int> buffer) =>
+    size.index >= _determineBlockSize(buffer.length).index;
+  
+  bool isNotFitFor(List<int> buffer) =>
+    size.index < _determineBlockSize(buffer.length).index;
 
-  List<int> getBytes() {
+  List<int> wrapBuffer(List<int> buffer) {
+    if (isNotFitFor(buffer)) {
+      throw new Exception('This buffer is no fit for the block. Create a new block.');
+    }
     List<int> sizeOfLength = intToByteListBE(buffer.length, 4);
-    BlockSize blockSize = _determineBlockSize(buffer.length);
-    int blockType = BlockType.OCCUPIED.index << 4;
-    List<int> filler = new List.filled(_getActualBlockSize(blockSize) - buffer.length, 0);
-    
-    return new List()
-      ..add(blockType | blockSize.index)
-      ..addAll(sizeOfLength)
-      ..addAll(buffer)
-      ..addAll(filler)
-      ..toList(growable: false);
+    int blockSize = _getActualBlockSize(size);
+
+    return new List<int>.filled(blockSize, 0)
+      ..setRange(0, 2, [size.index, type.index])
+      ..setRange(2, 6, sizeOfLength)
+      ..setRange(6, buffer.length + 6, buffer);
   }
 
   int get blockSize {
@@ -121,8 +143,6 @@ class Block {
 
     return _getActualBlockSize(blockSize);
   }
-
-  int get dataSize => buffer.length;
 }
 
 class Cursor<T extends Entity> extends Iterator<T> {
@@ -161,11 +181,18 @@ class XCollection<T extends Entity> extends IterableBase<T> {
   final Storage _storage;  
   final String collectionName;
   final EntityBuilder<T> _itemCreator;
-  final Map<T, int> _positionsCache;
+  final Map<T, Block> _positionsCache;
 
-  XCollection(this.collectionName, this._itemCreator, {Storage storage}):
-    _storage = storage ?? new FileStorage(collectionName),
-    _positionsCache = new Map();
+  XCollection({Storage storage, EntityBuilder builder, String name}):
+    collectionName = name ?? T.toString(),
+    _itemCreator = builder,
+    _storage = storage ?? new FileStorage(name ?? T.toString()),
+    _positionsCache = new Map<T, Block>()
+  {
+    if (collectionName == 'dynamic') {
+      throw new Exception('Specify collection base class derived from Entity');
+    }
+  }
 
   T _creator(int position) {
     T item = _itemCreator();
@@ -177,13 +204,21 @@ class XCollection<T extends Entity> extends IterableBase<T> {
   }
 
   void _save(T item) {
-    int offset = _positionsCache[item];
-    List<int> data = item.serialize();
-    int newSize = _storage.writeSync(data, offset);
-    int position = newSize - data.length;
+    Block block;
+    int position;
+    List<int> buffer = item.serialize();
 
-    _positionsCache[item] = position;
-    item.associatePosition(position);
+    if (_positionsCache.containsKey(item) && _positionsCache[item].isFitFor(buffer)) {
+      block = _positionsCache[item];
+      position = block.position;
+
+      _storage.writeSync(block.wrapBuffer(buffer), position);
+    } else {
+      position = _storage.size();
+      block = new Block.forBuffer(buffer, position);
+      _storage.writeSync(block.wrapBuffer(buffer));
+      _positionsCache[item] = block;
+    }
   }
 
   @override
