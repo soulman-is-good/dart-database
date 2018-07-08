@@ -5,18 +5,16 @@ import './main.dart';
 
 typedef void SaveCallback(Entity item);
 
-abstract class Entity extends MapBase {
+class Entity extends MapBase {
   int _position;
   final Map<String, dynamic> _fields = new Map();
-  SaveCallback saveCallback;
+  SaveCallback _saveCallback;
 
   Entity();  
   Entity.fromByteArray(List<int> byteArray) {
     deserialize(byteArray);
   }
   
-  static Entity create() => new Entity();
-
   List<int> serialize() {
     List<int> result = new List();
 
@@ -41,7 +39,7 @@ abstract class Entity extends MapBase {
   }
   
   void setSaveCallback(SaveCallback callback) {
-    saveCallback = callback;
+    _saveCallback = callback;
   }
   
   void associatePosition(int position) {
@@ -72,9 +70,10 @@ abstract class Entity extends MapBase {
   }
   
   void save() {
-    if (saveCallback != null) {
-      saveCallback(this);
+    if (_saveCallback == null) {
+      throw new Exception('This entity is out of collection. Add it to collection first.');
     }
+    _saveCallback(this);
   }
   
   @override

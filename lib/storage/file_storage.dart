@@ -134,6 +134,34 @@ class FileStorage extends Storage {
     return size();
   }
 
+  Future lock() async {
+    File file = _files[name];
+    RandomAccessFile handler = await file.open(mode: FileMode.WRITE);
+
+    return handler.lock().then((_) => null);
+  }
+
+  void lockSync() {
+    File file = _files[name];
+    RandomAccessFile handler = file.openSync(mode: FileMode.WRITE);
+
+    handler.lockSync(FileLock.BLOCKING_EXCLUSIVE);
+  }
+
+  Future unlock() async {
+    File file = _files[name];
+    RandomAccessFile handler = await file.open(mode: FileMode.WRITE);
+
+    return handler.unlock().then((_) => null);
+  }
+
+  void unlockSync() {
+    File file = _files[name];
+    RandomAccessFile handler = file.openSync(mode: FileMode.WRITE);
+
+    handler.unlockSync();
+  }
+
   @override
   int size() {
     return _files[name].existsSync() ? _files[name].lengthSync() : 0;

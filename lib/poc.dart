@@ -8,7 +8,7 @@ import './utils.dart';
 
 typedef void SaveCallback<S extends Entity>(S item);
 typedef S EntityBuilder<S extends Entity>();
-typedef S _CursorEntityBuilder<S extends Entity>(int offset);
+typedef S _CursorEntityBuilder<S extends Entity>(int offset, List<int> buffer);
 
 enum BlockSize {
   XXS, // 8KB
@@ -45,28 +45,25 @@ class BlockType {
 }
 
 class Block {
-  final BlockType type;
-  final BlockSize size;
+  final BlockType blockType;
+  final BlockSize blockSize;
   final int position;
-  final int _dataLength;
 
-  Block():
-    type = BlockType.EMPTY,
-    size = BlockSize.S;
+  Block([this.position = 0]):
+    blockType = BlockType.EMPTY,
+    blockSize = BlockSize.S;
 
-  Block.fromByteArray(List<int> buffer, [int offset = 0]):
-    size = BlockSize.values[buffer[0]],
-    type = BlockType.values[buffer[1]],
-    position = offset,
-    _dataLength = buffer.length;
+  Block.fromByteArray(List<int> bytes, [int offset = 0]):
+    blockSize = BlockSize.values[bytes[0]],
+    blockType = BlockType.values[bytes[1]],
+    position = offset;
     
   Block.forBuffer(List<int> buffer, [int offset = 0]):
-    size = _determineBlockSize(buffer.length),
-    type = BlockType.USED,
-    position = offset,
-    _dataLength = buffer.length;
+    blockSize = determineBlockSize(buffer.length),
+    blockType = BlockType.USED,
+    position = offset;
 
-  static BlockSize _determineBlockSize(int size) {
+  static BlockSize determineBlockSize(int size) {
     // sizes decreased by 6 bytes for block header
     if (size > 1073741818) {
       throw new RangeError.range(size, 0, 1073741818, 'BlockSize', 'Data is too big and currently not supported');
@@ -96,7 +93,7 @@ class Block {
     return BlockSize.XXS;
   }
 
-  static int _getActualBlockSize(BlockSize size) {
+  static int getActualBlockSize(BlockSize size) {
     switch (size) {
       case BlockSize.XXXL:
         return 1073741824;
@@ -120,29 +117,24 @@ class Block {
   }
   
   bool isFitFor(List<int> buffer) =>
-    size.index >= _determineBlockSize(buffer.length).index;
+    blockSize.index >= determineBlockSize(buffer.length).index;
   
   bool isNotFitFor(List<int> buffer) =>
-    size.index < _determineBlockSize(buffer.length).index;
+    blockSize.index < determineBlockSize(buffer.length).index;
 
   List<int> wrapBuffer(List<int> buffer) {
     if (isNotFitFor(buffer)) {
       throw new Exception('This buffer is no fit for the block. Create a new block.');
     }
     List<int> sizeOfLength = intToByteListBE(buffer.length, 4);
-    int blockSize = _getActualBlockSize(size);
 
-    return new List<int>.filled(blockSize, 0)
-      ..setRange(0, 2, [size.index, type.index])
+    return new List<int>.filled(size, 0)
+      ..setRange(0, 2, [blockSize.index, blockType.index])
       ..setRange(2, 6, sizeOfLength)
       ..setRange(6, buffer.length + 6, buffer);
   }
 
-  int get blockSize {
-    BlockSize blockSize = _determineBlockSize(buffer.length);
-
-    return _getActualBlockSize(blockSize);
-  }
+  int get size => getActualBlockSize(blockSize);
 }
 
 class Cursor<T extends Entity> extends Iterator<T> {
@@ -164,14 +156,20 @@ class Cursor<T extends Entity> extends Iterator<T> {
     if (_position >= _storage.size()) {
       return false;
     }
-    List<int> blockHeader = _storage.readSync(_position, 5);
-    List<int> recordLengthBytes = _storage.readSync(_position, 4);
-    int recordLength = byteListToInt(recordLengthBytes);
-    List<int> entityData = _storage.readSync(_position + 4, recordLength);
+    List<int> blockHeader = _storage.readSync(_position, 6);
+    BlockSize blockSize = BlockSize.values[blockHeader[0]];
+    BlockType blockType = BlockType.values[blockHeader[1]];
 
-    _current = _creator(_position);
-    _position += recordLength + 4;
-    _current.deserialize(entityData);
+    if (blockType != BlockType.USED) {
+      _position += Block.getActualBlockSize(blockSize);
+
+      return moveNext();
+    }
+    int recordLength = byteListToInt(blockHeader.sublist(2, 6));
+    List<int> entityData = _storage.readSync(_position + 6, recordLength);
+
+    _current = _creator(_position, entityData);
+    _position += Block.getActualBlockSize(blockSize);
 
     return true;
   }
@@ -184,8 +182,8 @@ class XCollection<T extends Entity> extends IterableBase<T> {
   final Map<T, Block> _positionsCache;
 
   XCollection({Storage storage, EntityBuilder builder, String name}):
-    collectionName = name ?? T.toString(),
     _itemCreator = builder,
+    collectionName = name ?? T.toString(),
     _storage = storage ?? new FileStorage(name ?? T.toString()),
     _positionsCache = new Map<T, Block>()
   {
@@ -194,31 +192,42 @@ class XCollection<T extends Entity> extends IterableBase<T> {
     }
   }
 
-  T _creator(int position) {
-    T item = _itemCreator();
+  T _creator(int position, List<int> buffer) {
+    T item = _itemCreator == null ? new Entity() : _itemCreator();
+
+    item.deserialize(buffer);
     item.associatePosition(position);
-    _positionsCache[item] = position;
     item.setSaveCallback(_save);
+    _positionsCache[item] = new Block.forBuffer(buffer, position);
 
     return item;
   }
 
   void _save(T item) {
     Block block;
-    int position;
     List<int> buffer = item.serialize();
+    bool hasItem = _positionsCache.containsKey(item);
+    bool isFit = hasItem && _positionsCache[item].isFitFor(buffer);
 
-    if (_positionsCache.containsKey(item) && _positionsCache[item].isFitFor(buffer)) {
+    if (hasItem) {
       block = _positionsCache[item];
-      position = block.position;
-
-      _storage.writeSync(block.wrapBuffer(buffer), position);
-    } else {
-      position = _storage.size();
-      block = new Block.forBuffer(buffer, position);
-      _storage.writeSync(block.wrapBuffer(buffer));
-      _positionsCache[item] = block;
     }
+
+    if (isFit) {
+      _storage.writeSync(block.wrapBuffer(buffer), block.position);
+      return;
+    } else if (hasItem) {
+      _storage.writeSync([
+        block.blockSize.index,
+        BlockType.ABANDONED.index,
+      ], block.position);
+    }
+    // TODO: find available deleted or abandoned block that fits
+    int position = _storage.size();
+
+    block = new Block.forBuffer(buffer, position);
+    _storage.writeSync(block.wrapBuffer(buffer));
+    _positionsCache[item] = block;
   }
 
   @override
@@ -227,5 +236,44 @@ class XCollection<T extends Entity> extends IterableBase<T> {
   void add(T item) {
     _save(item);
     item.setSaveCallback(_save);
+  }
+
+  void remove(T item) {
+    if (_positionsCache.containsKey(item)) {
+      Block block = _positionsCache[item];
+
+      _storage.writeSync([
+        block.blockSize.index,
+        BlockType.DELETED.index,
+      ], block.position);
+    }
+  }
+
+  void removeAt(int index) {
+    T item = elementAt(index);
+
+    remove(item);
+  }
+
+  List<Block> getBlocks() {
+    int size = _storage.size();
+    int position = 0;
+    List<Block> blocks = new List<Block>();
+
+    while (position < size) {
+      List<int> header = _storage.readSync(position, 2);
+      Block block = new Block.fromByteArray(header, position);
+
+      blocks.add(block);
+      position += block.size;
+    }
+
+    return blocks;
+  }
+
+  void optimize() {
+    _storage.lockSync();
+    // TODO: remove deleted and abandoned blocks
+    _storage.unlockSync();
   }
 }
