@@ -32,24 +32,4 @@ class MemoryStorage extends Storage {
   int writeSync(List<int> buffer, [int offset = null]) {
     // TODO: implement writeSync
   }
-
-  @override
-  Future lock() {
-    // TODO: implement lock
-  }
-
-  @override
-  void lockSync() {
-    // TODO: implement lockSync
-  }
-
-  @override
-  Future unlock() {
-    // TODO: implement unlock
-  }
-
-  @override
-  void unlockSync() {
-    // TODO: implement unlockSync
-  }
 }

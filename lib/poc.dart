@@ -233,6 +233,30 @@ class XCollection<T extends Entity> extends IterableBase<T> {
   @override
   Iterator<T> get iterator => new Cursor<T>(_creator, _storage);
 
+  @override
+  T elementAt(int index) {
+    int size = _storage.size();
+    int position = 0;
+    int currentIndex = 0;
+    List<int> header;
+
+    while (position < size && currentIndex < index) {
+      header = _storage.readSync(position, 6);
+      BlockSize blockSize = BlockSize.values[header[0]];
+
+      position += Block.getActualBlockSize(blockSize);
+      currentIndex += 1;
+    }
+
+    if (position >= size) {
+      throw new RangeError.index(index, []);
+    }
+    int dataSize = byteListToInt(header.sublist(2, 4));
+    List<int> buffer = _storage.readSync(position + 6, dataSize);
+
+    return _creator(position, buffer);
+  }
+
   void add(T item) {
     _save(item);
     item.setSaveCallback(_save);
@@ -272,8 +296,10 @@ class XCollection<T extends Entity> extends IterableBase<T> {
   }
 
   void optimize() {
-    _storage.lockSync();
     // TODO: remove deleted and abandoned blocks
-    _storage.unlockSync();
+  }
+
+  void clear() {
+    _storage.clear();
   }
 }
