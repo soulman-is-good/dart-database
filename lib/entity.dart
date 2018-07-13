@@ -1,16 +1,19 @@
 library dart_database.entity;
 
 import 'dart:collection';
-import './main.dart';
+import 'dart:math';
 
-typedef void SaveCallback(Entity item);
+import 'package:dart_database/dart_database.dart';
 
 class Entity extends MapBase {
   int _position;
   final Map<String, dynamic> _fields = new Map();
   SaveCallback _saveCallback;
 
-  Entity();  
+  Entity() {
+    this['_id'] = new Random().nextInt(1000000000);
+  }
+
   Entity.fromByteArray(List<int> byteArray) {
     deserialize(byteArray);
   }

@@ -1,3 +1,5 @@
+library dart_database.memory_storage;
+
 import 'dart:async';
 import './storage.dart';
 

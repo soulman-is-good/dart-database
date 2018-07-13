@@ -1,3 +1,5 @@
+library dart_database.storage;
+
 import 'dart:async';
 
 abstract class Storage {

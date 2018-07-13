@@ -1,9 +1,9 @@
+library dart_database.file_storage;
+
 import 'dart:io';
 import 'dart:async';
-import '../main.dart';
-import './storage.dart';
 
-typedef void VoidCallback();
+import 'package:dart_database/dart_database.dart';
 
 class TemporaryAccess<T> {
   T _value;
