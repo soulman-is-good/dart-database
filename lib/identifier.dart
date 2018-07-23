@@ -29,9 +29,9 @@ class Identifier {
     ..toList(growable: false);
 
   String toString() {
-    String pidList = intToByteListBE(_processId, 2).map((int byte) => byte.toRadixString(16)).join('');
-    String timeList = intToByteListBE(_created.millisecondsSinceEpoch, 4).map((int byte) => byte.toRadixString(16)).join('');
-    String incrementList = intToByteListBE(_increment, 4).map((int byte) => byte.toRadixString(16)).join('');
+    String pidList = intToByteListBE(_processId, 2).map((int byte) => byte.toRadixString(16).padLeft(2, '0')).join('');
+    String timeList = intToByteListBE(_created.millisecondsSinceEpoch, 4).map((int byte) => byte.toRadixString(16).padLeft(2, '0')).join('');
+    String incrementList = intToByteListBE(_increment, 4).map((int byte) => byte.toRadixString(16).padLeft(2, '0')).join('');
     
     return '$pidList-$timeList-$incrementList';
   }
