@@ -37,7 +37,7 @@ class FileStorage extends Storage {
     if (!_files.containsKey(name)) {
       final String path = Config.get('dbPath') ?? new String.fromEnvironment('DB_PATH') ?? Directory.systemTemp.path;
 
-      _files[name] = new File('$path/$name.db');
+      _files[name] = new File('$path/$name');
     }
   }
 

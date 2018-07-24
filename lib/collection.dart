@@ -9,13 +9,23 @@ class Collection<T extends Entity> extends IterableBase<T> {
   final Storage _storage;  
   final String collectionName;
   final EntityBuilder<T> _itemCreator;
-  final Map<T, Block> _positionsCache;
+  final Expando<T> _positionsCache;
+  final IndexFile _indexFile;
+  final List<String> _indexFields;
 
-  Collection({Storage storage, EntityBuilder builder, String name}):
+  Collection({
+    Storage storage,
+    EntityBuilder builder,
+    String name,
+    List<String> indexes,
+    Storage indexStorage,
+  }):
     _itemCreator = builder,
     collectionName = name ?? T.toString(),
-    _storage = storage ?? new FileStorage(name ?? T.toString()),
-    _positionsCache = new Map<T, Block>()
+    _storage = storage ?? new FileStorage('${name ?? T.toString()}.db'),
+    _positionsCache = new Expando<T>(name ?? T.toString()),
+    _indexFields = indexes ?? <String>['_id'],
+    _indexFile = indexStorage ?? new FileStorage('${name ?? T.toString()}.idx')
   {
     if (collectionName == 'dynamic') {
       throw new Exception('Specify collection base class derived from Entity');

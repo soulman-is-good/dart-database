@@ -7,6 +7,7 @@ export './storage/memory_storage.dart';
 export './storage/storage.dart';
 export './identifier.dart';
 export './typings.dart';
+export './indexes.dart';
 export './field.dart';
 export './block.dart';
 export './cursor.dart';
@@ -22,7 +23,6 @@ void bootstrap(Map<String, dynamic> settings) {
 }
 
 /// Exported
-
 class Config {
   static dynamic get(String name) => _settings[name];
 }

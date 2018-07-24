@@ -1,7 +1,7 @@
 library dart_database.cursor;
 
 import 'package:dart_database/dart_database.dart';
-import 'package:dart_database/utils.dart';
+import './utils.dart';
 
 typedef S _CursorEntityBuilder<S extends Entity>(int offset, List<int> buffer);
 
@@ -41,4 +41,6 @@ class Cursor<T extends Entity> extends Iterator<T> {
 
     return true;
   }
+  
+  // implement elementAt and other functions with _indexes
 }
