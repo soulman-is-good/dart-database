@@ -41,6 +41,4 @@ class Cursor<T extends Entity> extends Iterator<T> {
 
     return true;
   }
-  
-  // implement elementAt and other functions with _indexes
 }

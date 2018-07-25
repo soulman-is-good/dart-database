@@ -30,12 +30,14 @@ class TemporaryAccess<T> {
 class FileStorage extends Storage {
   static final Map<String, File> _files = new Map();
   final Map<File, TemporaryAccess<RandomAccessFile>> _handlers;
+  int _length;
+  int _lastPosition;
 
-  FileStorage(String name):
+  FileStorage(String name, {String dbPath}):
   _handlers = new Map(),
   super(name) {
     if (!_files.containsKey(name)) {
-      final String path = Config.get('dbPath') ?? new String.fromEnvironment('DB_PATH') ?? Directory.systemTemp.path;
+      final String path = dbPath ?? Config.get('dbPath') ?? Platform.environment['DB_PATH'] ?? Directory.systemTemp.path;
 
       _files[name] = new File('$path/$name');
     }
@@ -57,6 +59,7 @@ class FileStorage extends Storage {
             fileHandler,
             () {
               fileHandler.closeSync();
+              _lastPosition = null;
             }
           );
 
@@ -80,6 +83,7 @@ class FileStorage extends Storage {
         fileHandler,
         () {
           fileHandler.closeSync();
+          _lastPosition = null;
         }
       );
 
@@ -91,7 +95,10 @@ class FileStorage extends Storage {
   Future<List<int>> read(int start, [int length = 1]) async {
     RandomAccessFile file = await _open(name);
 
-    await file.setPosition(start);
+    if (_lastPosition != start) {
+      await file.setPosition(start);
+    }
+    _lastPosition = (_lastPosition ?? 0) + length;
 
     return await file.read(length);
   }
@@ -100,10 +107,12 @@ class FileStorage extends Storage {
   List<int> readSync(int start, [int length = 1]) {
     RandomAccessFile file = _openSync(name);
 
-    file.setPositionSync(start);
-    List<int> buffer = file.readSync(length);
+    if (_lastPosition != start) {
+      file.setPositionSync(start);
+    }
+    _lastPosition = (_lastPosition ?? 0) + length;
 
-    return buffer;
+    return file.readSync(length);
   }
 
   Future<int> write(List<int> buffer, [int offset = null]) async {
@@ -116,6 +125,7 @@ class FileStorage extends Storage {
     }
     await handler.writeFrom(buffer);
     await handler.close();
+    _length = null;
     
     return _files[name].length();
   }
@@ -130,6 +140,7 @@ class FileStorage extends Storage {
     }
     handler.writeFromSync(buffer);
     handler.closeSync();
+    _length = null;
 
     return size();
   }
@@ -142,7 +153,11 @@ class FileStorage extends Storage {
 
   @override
   int size() {
-    return _files[name].existsSync() ? _files[name].lengthSync() : 0;
+    if (_length == null && _files[name].existsSync()) {
+      _length = _files[name].lengthSync();
+    }
+    
+    return _length ?? 0;
   }
 
   @override
