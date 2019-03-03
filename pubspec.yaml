@@ -1,5 +1,5 @@
 name: dart_database
-version: 0.0.1
+version: 0.0.2
 author: Maxim Savin <soulman.is.good@gmail.com>
 description: Embeded database written on Dart
 homepage: https://github.com/soulman-is-good/dart-database
