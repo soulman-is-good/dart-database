@@ -1,24 +1,35 @@
 library dart_database.field;
 
+import 'package:dart_database/dart_database.dart';
 import './utils.dart';
+
+enum FieldType {
+  IDENTIFIER,
+  STRING,
+  INTEGER,
+  BOOLEAN
+}
 
 class Field {
   static dynamic parseByteArray(List<int> byteList, [int offset = 0]) {
     List<int> bytes = byteList.sublist(offset);
     Type fieldType;
-    int typeByte = bytes[0];
+    FieldType typeByte = FieldType.values[bytes[0]];
 
     if (bytes.length < 3) {
       throw new Exception('Malformed buffer. Field should be more than 2 bytes long');
     }
     switch(typeByte) {
-      case 0x01:
+      case FieldType.IDENTIFIER:
+        fieldType = Identifier;
+        break;
+      case FieldType.STRING:
         fieldType = String;
         break;
-      case 0x02:
+      case FieldType.INTEGER:
         fieldType = int;
         break;
-      case 0x03:
+      case FieldType.BOOLEAN:
         fieldType = bool;
         break;
       default:
@@ -33,17 +44,18 @@ class Field {
     List<int> dataBuffer = bytes.getRange(valueStart, valueStart + valueLength).toList();
 
     switch(typeByte) {
-      case 0x01:
+      case FieldType.IDENTIFIER:
+        fieldValue = new Identifier.fromByteArray(dataBuffer);
+        break;
+      case FieldType.STRING:
         fieldValue = new String.fromCharCodes(dataBuffer);
         break;
-      case 0x02:
+      case FieldType.INTEGER:
         fieldValue = byteListToInt(dataBuffer);
         break;
-      case 0x03:
+      case FieldType.BOOLEAN:
         fieldValue = bytes[valueStart] == 1;
         break;
-      default:
-        throw new Exception('Cannot recognize datatype');
     }
     
     return [
@@ -86,14 +98,16 @@ class Field {
   }
 
   static int _getTypeByte(dynamic value) {
-    if (value is String) return 0x01;
-    if (value is int) return 0x02;
-    if (value is bool) return 0x03;
+    if (value is Identifier) return FieldType.IDENTIFIER.index;
+    if (value is String) return FieldType.STRING.index;
+    if (value is int) return FieldType.INTEGER.index;
+    if (value is bool) return FieldType.BOOLEAN.index;
 
     throw new Exception('Unknown type ${value.runtimeType.toString()}');
   }
 
   static List<int> _valueToByteArray(dynamic value) {
+    if (value is Identifier) return value.toByteArray();
     if (value is String) return value.codeUnits;
     if (value is int) return intToByteListBE(value);
     if (value is bool) return <int>[value ? 1 : 0];

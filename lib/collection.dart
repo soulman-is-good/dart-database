@@ -11,17 +11,23 @@ class Collection<T extends Entity> extends IterableBase<T> {
   final Storage _storage;  
   final String collectionName;
   final EntityBuilder<T> _itemCreator;
-  final Map<T, Block> _positionsCache;
+  final Expando<Block> _positionsCache;
+  final Storage _indexFile;
+  final List<String> _indexFields;
 
   Collection({
     @required EntityBuilder builder,
-    String name,
     Storage storage,
+    String name,
+    List<String> indexes,
+    Storage indexStorage,
   }):
     _itemCreator = builder,
     collectionName = name ?? T.toString(),
-    _storage = storage ?? new FileStorage(name ?? T.toString()),
-    _positionsCache = new Map<T, Block>()
+    _storage = storage ?? new FileStorage('${name ?? T.toString()}.db'),
+    _positionsCache = new Expando<Block>(name ?? T.toString()),
+    _indexFields = indexes ?? <String>['_id'],
+    _indexFile = indexStorage ?? new FileStorage('${name ?? T.toString()}.idx')
   {
     if (collectionName == 'dynamic') {
       throw new Exception('Specify collection base class derived from Entity');
@@ -42,7 +48,7 @@ class Collection<T extends Entity> extends IterableBase<T> {
   void _save(T item) {
     Block block;
     List<int> buffer = item.serialize();
-    bool hasItem = _positionsCache.containsKey(item);
+    bool hasItem = _positionsCache[item] != null;
     bool isFit = hasItem && _positionsCache[item].isFitFor(buffer);
 
     if (hasItem) {
@@ -99,7 +105,7 @@ class Collection<T extends Entity> extends IterableBase<T> {
   }
 
   void remove(T item) {
-    if (_positionsCache.containsKey(item)) {
+    if (_positionsCache[item] != null) {
       Block block = _positionsCache[item];
 
       _storage.writeSync([

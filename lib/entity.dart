@@ -11,13 +11,13 @@ class Entity extends MapBase {
   SaveCallback _saveCallback;
 
   Entity() {
-    this['_id'] = new Random().nextInt(1000000000);
+    this['_id'] = new Identifier();
   }
 
   Entity.fromByteArray(List<int> byteArray) {
     deserialize(byteArray);
   }
-  
+
   List<int> serialize() {
     List<int> result = new List();
 
@@ -48,6 +48,13 @@ class Entity extends MapBase {
   void associatePosition(int position) {
     _position = position;
   }
+  
+  void save() {
+    if (_saveCallback == null) {
+      throw new Exception('This entity is out of collection. Add it to collection first.');
+    }
+    _saveCallback(this);
+  }
 
   @override
   operator [](Object key) {
@@ -72,11 +79,14 @@ class Entity extends MapBase {
     _fields.remove(key);
   }
   
-  void save() {
-    if (_saveCallback == null) {
-      throw new Exception('This entity is out of collection. Add it to collection first.');
-    }
-    _saveCallback(this);
+  @override
+  String toString() {
+    String className = runtimeType.toString();
+    String fields = _fields.keys
+      .map((String key) => '$key=${_fields[key].toString()}')
+      .join(', ');
+    
+    return '$className: {$fields}';
   }
   
   @override

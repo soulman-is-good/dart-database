@@ -8,17 +8,18 @@ class Block {
   final BlockType blockType;
   final BlockSize blockSize;
   final int position;
+  final Block previous;
 
-  Block([this.position = 0]):
+  Block([this.position = 0, this.previous]):
     blockType = BlockType.EMPTY,
     blockSize = BlockSize.S;
 
-  Block.fromByteArray(List<int> bytes, [int offset = 0]):
+  Block.fromByteArray(List<int> bytes, [int offset = 0, this.previous]):
     blockSize = BlockSize.values[bytes[0]],
     blockType = BlockType.values[bytes[1]],
     position = offset;
     
-  Block.forBuffer(List<int> buffer, [int offset = 0]):
+  Block.forBuffer(List<int> buffer, [int offset = 0, this.previous]):
     blockSize = BlockSize.determineBlockSize(buffer.length),
     blockType = BlockType.USED,
     position = offset;
