@@ -1,4 +1,7 @@
 name: dart_database
-version: 0.1.0
+version: 0.0.1
+environment:
+  sdk: ^2.1.0
 dependencies:
-  test: any
+  test: ^1.5.3
+  meta: ^1.1.7

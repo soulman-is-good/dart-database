@@ -12,4 +12,5 @@ abstract class Storage {
   Future<int> write(List<int> buffer, [int offset = null]);
   int writeSync(List<int> buffer, [int offset = null]);
   int size();
+  Future clear();
 }

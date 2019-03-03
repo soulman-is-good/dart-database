@@ -109,7 +109,7 @@ class FileStorage extends Storage {
   Future<int> write(List<int> buffer, [int offset = null]) async {
     int _offset = offset;
     File file = _files[name];
-    RandomAccessFile handler = await file.open(mode: FileMode.WRITE_ONLY_APPEND);
+    RandomAccessFile handler = await file.open(mode: FileMode.writeOnlyAppend);
 
     if (_offset != null) {
       await handler.setPosition(offset);
@@ -123,7 +123,7 @@ class FileStorage extends Storage {
   int writeSync(List<int> buffer, [int offset = null]) {
     int _offset = offset;
     File file = _files[name];
-    RandomAccessFile handler = file.openSync(mode: FileMode.WRITE_ONLY_APPEND);
+    RandomAccessFile handler = file.openSync(mode: FileMode.writeOnlyAppend);
 
     if (_offset != null) {
       handler.setPositionSync(offset);
@@ -134,10 +134,10 @@ class FileStorage extends Storage {
     return size();
   }
 
-  void clear() {
+  Future clear() async {
     File file = _files[name];
 
-    file.writeAsBytesSync(<int>[], flush: true, mode: FileMode.WRITE);
+    file.writeAsBytesSync(<int>[], flush: true, mode: FileMode.write);
   }
 
   @override

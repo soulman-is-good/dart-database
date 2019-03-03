@@ -1,5 +1,7 @@
 library dart_database;
 
+import 'package:dart_database/settings.dart';
+
 export './enum/block_size.dart';
 export './enum/block_type.dart';
 export './storage/file_storage.dart';
@@ -14,10 +16,12 @@ export './collection.dart';
 
 /// Database properties
 /// - dbPath: string
-final Map<String, dynamic> _settings = new Map();
+Settings _settings;
 
-void bootstrap(Map<String, dynamic> settings) {
-  _settings.addAll(settings);
+void bootstrap({String dbFolder}) {
+  _settings = new Settings(
+    dbPath: dbFolder,
+  );
 }
 
 /// Exported

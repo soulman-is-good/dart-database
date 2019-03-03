@@ -34,4 +34,22 @@ class MemoryStorage extends Storage {
   int writeSync(List<int> buffer, [int offset = null]) {
     // TODO: implement writeSync
   }
+
+  @override
+  Future clear() {
+    // TODO: implement clear
+    return null;
+  }
+
+  @override
+  Future<int> readByte(int position) {
+    // TODO: implement readByte
+    return null;
+  }
+
+  @override
+  int readByteSync(int position) {
+    // TODO: implement readByteSync
+    return null;
+  }
 }

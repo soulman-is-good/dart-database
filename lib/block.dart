@@ -1,6 +1,8 @@
 library dart_database.block;
 
+import 'package:dart_database/block_reader.dart';
 import 'package:dart_database/dart_database.dart';
+import 'package:dart_database/utils.dart';
 
 class Block {
   final BlockType blockType;
@@ -31,12 +33,12 @@ class Block {
     if (isNotFitFor(buffer)) {
       throw new Exception('This buffer is no fit for the block. Create a new block.');
     }
-    List<int> sizeOfLength = intToByteListBE(buffer.length, 4);
+    List<int> sizeOfLength = intToByteListBE(buffer.length, BlockReader.lengthSize);
 
     return new List<int>.filled(size, 0)
-      ..setRange(0, 2, [blockSize.index, blockType.index])
-      ..setRange(2, 6, sizeOfLength)
-      ..setRange(6, buffer.length + 6, buffer);
+      ..setRange(0, BlockReader.paramsSize, [blockSize.index, blockType.index])
+      ..setRange(BlockReader.paramsSize, BlockReader.headerSize, sizeOfLength)
+      ..setRange(BlockReader.headerSize, buffer.length + BlockReader.headerSize, buffer);
   }
 
   int get size => blockSize.sizeInBytes;

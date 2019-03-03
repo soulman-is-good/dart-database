@@ -2,8 +2,10 @@ library dart_database.collection;
 
 import 'dart:collection';
 
+import 'package:dart_database/block_reader.dart';
 import 'package:dart_database/dart_database.dart';
 import 'package:dart_database/utils.dart';
+import 'package:meta/meta.dart';
 
 class Collection<T extends Entity> extends IterableBase<T> {
   final Storage _storage;  
@@ -11,7 +13,11 @@ class Collection<T extends Entity> extends IterableBase<T> {
   final EntityBuilder<T> _itemCreator;
   final Map<T, Block> _positionsCache;
 
-  Collection({Storage storage, EntityBuilder builder, String name}):
+  Collection({
+    @required EntityBuilder builder,
+    String name,
+    Storage storage,
+  }):
     _itemCreator = builder,
     collectionName = name ?? T.toString(),
     _storage = storage ?? new FileStorage(name ?? T.toString()),
@@ -70,8 +76,8 @@ class Collection<T extends Entity> extends IterableBase<T> {
     int currentIndex = 0;
     List<int> header;
 
-    while (position < size && currentIndex < index) {
-      header = _storage.readSync(position, 6);
+    while (position < size && currentIndex <= index) {
+      header = _storage.readSync(position, BlockReader.headerSize);
       BlockSize blockSize = BlockSize.values[header[0]];
 
       position += blockSize.sizeInBytes;
@@ -81,8 +87,8 @@ class Collection<T extends Entity> extends IterableBase<T> {
     if (position >= size) {
       throw new RangeError.index(index, []);
     }
-    int dataSize = byteListToInt(header.sublist(2, 4));
-    List<int> buffer = _storage.readSync(position + 6, dataSize);
+    int dataSize = byteListToInt(BlockReader.readBufferLength(header));
+    List<int> buffer = _storage.readSync(position + BlockReader.headerSize, dataSize);
 
     return _creator(position, buffer);
   }

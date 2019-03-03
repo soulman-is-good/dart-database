@@ -30,7 +30,7 @@ class Field {
     int valueStart = valueOffset + 4;
     int valueLength = byteListToInt(bytes.getRange(valueOffset, valueStart).toList());
     dynamic fieldValue;
-    List<int> dataBuffer = bytes.getRange(valueStart, valueStart + valueLength);
+    List<int> dataBuffer = bytes.getRange(valueStart, valueStart + valueLength).toList();
 
     switch(typeByte) {
       case 0x01:
@@ -90,7 +90,7 @@ class Field {
     if (value is int) return 0x02;
     if (value is bool) return 0x03;
 
-    throw new Exception('Unknown type');
+    throw new Exception('Unknown type ${value.runtimeType.toString()}');
   }
 
   static List<int> _valueToByteArray(dynamic value) {
