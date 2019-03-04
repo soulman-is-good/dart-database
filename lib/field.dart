@@ -1,5 +1,7 @@
 library dart_database.field;
 
+import 'dart:convert';
+
 import 'package:dart_database/dart_database.dart';
 import './utils.dart';
 
@@ -48,7 +50,7 @@ class Field {
         fieldValue = new Identifier.fromByteArray(dataBuffer);
         break;
       case FieldType.STRING:
-        fieldValue = new String.fromCharCodes(dataBuffer);
+        fieldValue = Utf8Decoder().convert(dataBuffer);
         break;
       case FieldType.INTEGER:
         fieldValue = byteListToInt(dataBuffer);
@@ -98,6 +100,7 @@ class Field {
   }
 
   static int _getTypeByte(dynamic value) {
+    // TODO: handle Null values
     if (value is Identifier) return FieldType.IDENTIFIER.index;
     if (value is String) return FieldType.STRING.index;
     if (value is int) return FieldType.INTEGER.index;
@@ -108,7 +111,7 @@ class Field {
 
   static List<int> _valueToByteArray(dynamic value) {
     if (value is Identifier) return value.toByteArray();
-    if (value is String) return value.codeUnits;
+    if (value is String) return Utf8Encoder().convert(value);
     if (value is int) return intToByteListBE(value);
     if (value is bool) return <int>[value ? 1 : 0];
 
